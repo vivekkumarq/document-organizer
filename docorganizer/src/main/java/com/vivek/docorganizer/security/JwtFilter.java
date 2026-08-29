@@ -1,7 +1,5 @@
 package com.vivek.docorganizer.security;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,12 +10,26 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Collections;
+import java.util.List;
 
+/**
+ * Reads a {@code Bearer} token off the request and, when it verifies, populates the
+ * security context with the email of the caller as the principal.
+ *
+ * <p>This filter never writes a response itself. An absent or invalid token simply leaves the
+ * context anonymous and the configured authentication entry point decides what to do, so
+ * public endpoints stay reachable and protected ones return a consistent JSON 401.
+ */
 @Component
 public class JwtFilter extends OncePerRequestFilter {
 
-    private final String SECRET = "mysecretkeymysecretkeymysecretkey12345";
+    private static final String BEARER_PREFIX = "Bearer ";
+
+    private final JwtUtil jwtUtil;
+
+    public JwtFilter(JwtUtil jwtUtil) {
+        this.jwtUtil = jwtUtil;
+    }
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -25,44 +37,30 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        String path = request.getRequestURI();
-
-        if (path.startsWith("/auth")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
         String header = request.getHeader("Authorization");
 
-        if (header == null || !header.startsWith("Bearer ")) {
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
-        }
+        if (header != null && header.startsWith(BEARER_PREFIX)
+                && SecurityContextHolder.getContext().getAuthentication() == null) {
 
-        String token = header.substring(7);
+            String token = header.substring(BEARER_PREFIX.length()).trim();
 
-        try {
+            try {
 
-            Claims claims = Jwts.parser()
-                    .setSigningKey(SECRET.getBytes())
-                    .parseClaimsJws(token)
-                    .getBody();
+                String email = jwtUtil.extractEmail(token);
 
-            String email = claims.getSubject();
+                if (email != null && !email.isBlank()) {
 
-            UsernamePasswordAuthenticationToken auth =
-                    new UsernamePasswordAuthenticationToken(
-                            email,
-                            null,
-                            Collections.emptyList()
-                    );
+                    UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(email, null, List.of());
 
-            SecurityContextHolder.getContext().setAuthentication(auth);
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
 
-        } catch (Exception e) {
-
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            return;
+            } catch (Exception ex) {
+                // Invalid or expired token: stay anonymous and let the entry point return the 401.
+                SecurityContextHolder.clearContext();
+                logger.debug("Rejected JWT: " + ex.getMessage());
+            }
         }
 
         filterChain.doFilter(request, response);

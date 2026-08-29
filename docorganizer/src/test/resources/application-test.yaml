@@ -1,0 +1,36 @@
+# Test profile: in-memory H2, isolated storage under target/, deterministic JWT secret.
+spring:
+  datasource:
+    url: jdbc:h2:mem:docorganizer;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 16MB
+      max-request-size: 20MB
+
+app:
+  jwt:
+    secret: test-secret-test-secret-test-secret-0123456789
+    expiration-ms: 3600000
+  cors:
+    allowed-origins: http://localhost:5173
+  storage:
+    dir: target/test-storage
+    quota-bytes: 4096
+    max-file-size-bytes: 2048
+    allowed-content-types:
+      - text/plain
+      - application/pdf
+      - image/png
+
+logging:
+  level:
+    com.vivek.docorganizer: WARN
+    org.springframework: WARN
