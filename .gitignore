@@ -1,7 +1,33 @@
+# --- Uploaded document storage (never commit user files) ---
+storage/*
+!storage/.gitkeep
+
+# --- Java / Maven ---
 target/
+HELP.md
+
+# --- Node / Vite ---
 node_modules/
+dist/
+dist-ssr/
+.vite/
+
+# --- IDEs ---
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.settings/
+.project
+.classpath
+
+# --- Environment & secrets ---
 .env
-*.log
+.env.local
+.env.*.local
+
+# --- OS / logs ---
 .DS_Store
-.idea
-.vscode
+Thumbs.db
+*.log
